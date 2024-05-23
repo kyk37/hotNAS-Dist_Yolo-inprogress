@@ -1,8 +1,10 @@
 # HotNAS with Dist-Yolo Implementation
 Edited by: Yukai Song & Kyle Kessler
 
+This code was modified for the purpose of loading a previous existing Dist-Yolo Model and performing futher training on it to reduce it's size and increase its efficiency.
+
 Based on
-# HotNAS
+### HotNAS
 Source code of HotNAS, accepted by CODES+ISSS 2020.
 
 ```
