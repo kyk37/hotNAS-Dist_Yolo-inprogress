@@ -1,5 +1,8 @@
-# HotNAS
+# HotNAS with Dist-Yolo Implementation
+Edited by: Yukai Song & Kyle Kessler
 
+Based on
+# HotNAS
 Source code of HotNAS, accepted by CODES+ISSS 2020.
 
 ```
