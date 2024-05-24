@@ -393,8 +393,6 @@ def yolo3_loss(args, anchors, num_classes, ignore_thresh=.5, label_smoothing=0, 
 
     return loss, total_location_loss, total_confidence_loss, total_class_loss, total_dist_loss
 
-
-
 ## ----------------------------------------
 ##  Everything below is tensorflow code from Dist-YOLO which was converted above.
 ## Delete later (kept for reference)
@@ -771,3 +769,4 @@ def yolo3_loss(args, anchors, num_classes, ignore_thresh=.5, label_smoothing=0, 
 #     loss = K.expand_dims(loss, axis=-1)
 
 #     return loss, total_location_loss, total_confidence_loss, total_class_loss, total_dist_loss
+
