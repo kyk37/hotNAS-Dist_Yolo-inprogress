@@ -6,6 +6,11 @@ from tensorflow.keras.optimizers.schedules import ExponentialDecay, PolynomialDe
 from tensorflow.keras.experimental import CosineDecay
 from tensorflow_model_optimization.sparsity import keras as sparsity
 
+from torch import optim
+from torch import nn
+import torch.nn.utils.prune as prune
+import torch.nn.functional as F
+import math
 
 def add_metrics(model, metric_dict):
     '''
@@ -22,22 +27,64 @@ def add_metrics(model, metric_dict):
         model.add_metric(metric, name=name, aggregation='mean')
 
 
+# create function for decayed learning rate based on https://keras.io/api/optimizers/learning_rate_schedules/polynomial_decay/
+# to replace "PolynomialDecay" from Keras
+# Define a polynomial decay function
+def polynomial_decay(epoch, max_epochs, initial_lr, final_lr, power):
+    if epoch >= max_epochs:
+        return final_lr
+    return ((initial_lr - final_lr) * (1 - epoch / max_epochs) ** power) + final_lr
+
+
 def get_pruning_model(model, begin_step, end_step):
-    import tensorflow as tf
-    if tf.__version__.startswith('2'):
-        # model pruning API is not supported in TF 2.0 yet
-        raise Exception('model pruning is not fully supported in TF 2.x, Please switch env to TF 1.x for this feature')
+    ## Notes use torch.optim.get_lr_scheduler.PolynomialLR #https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.PolynomialLR.html
+    # decays learning rate given total iters.
+    # end step = 10000
+    initial_rate = 0.0
+    final_rate = 0.7
+    max_epochs = 100
+    power = 100
+    optimizer = optim.SGD(model.parameters(), lr=initial_rate)
 
-    pruning_params = {
-      'pruning_schedule': sparsity.PolynomialDecay(initial_sparsity=0.0,
-                                                   final_sparsity=0.7,
-                                                   begin_step=begin_step,
-                                                   end_step=end_step,
-                                                   frequency=100)
-    }
+    ## send model to polynomialLR
+    scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: polynomial_decay(epoch, max_epochs, initial_lr, final_lr, power))
 
-    pruning_model = sparsity.prune_low_magnitude(model, **pruning_params)
+    ## send model to be pruned prune 70% of model
+    pruning_model = nn.utils.prune.RandomUnstructured(scheduler, name="weight", amount=0.7)
+
     return pruning_model
+
+# def add_metrics(model, metric_dict):
+#     '''
+#     add metric scalar tensor into model, which could be tracked in training
+#     log and tensorboard callback
+#     '''
+#     for (name, metric) in metric_dict.items():
+#         # seems add_metric() is newly added in tf.keras. So if you
+#         # want to customize metrics on raw keras model, just use
+#         # "metrics_names" and "metrics_tensors" as follow:
+#         #
+#         #model.metrics_names.append(name)
+#         #model.metrics_tensors.append(loss)
+#         model.add_metric(metric, name=name, aggregation='mean')
+
+
+# def get_pruning_model(model, begin_step, end_step):
+#     import tensorflow as tf
+#     if tf.__version__.startswith('2'):
+#         # model pruning API is not supported in TF 2.0 yet
+#         raise Exception('model pruning is not fully supported in TF 2.x, Please switch env to TF 1.x for this feature')
+
+#     pruning_params = {
+#       'pruning_schedule': sparsity.PolynomialDecay(initial_sparsity=0.0,
+#                                                    final_sparsity=0.7,
+#                                                    begin_step=begin_step,
+#                                                    end_step=end_step,
+#                                                    frequency=100)
+#     }
+
+#     pruning_model = sparsity.prune_low_magnitude(model, **pruning_params)
+#     return pruning_model
 
 
 # some global value for lr scheduler
@@ -97,6 +144,13 @@ def get_pruning_model(model, begin_step, end_step):
     #return lr
 
 
+
+
+## TODO 
+## if this functions are required, they need combined for pytorch
+## If a function needs either of these functions, it needs sent the model (params/dicts)
+## then those get put into the optimizer, and then into the scheduler
+##
 def get_lr_scheduler(learning_rate, decay_type, decay_steps):
     if decay_type:
         decay_type = decay_type.lower()
