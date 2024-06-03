@@ -4,12 +4,15 @@
 import numpy as np
 import random, math
 from PIL import Image
-from tensorflow.keras.utils import Sequence
+#from tensorflow.keras.utils import Sequence
 from common.data_utils import normalize_image, letterbox_resize, random_resize_crop_pad, reshape_boxes, \
     random_hsv_distort, random_horizontal_flip, random_vertical_flip, random_grayscale, random_brightness, \
     random_chroma, random_contrast, random_sharpness, random_blur, random_motion_blur, random_mosaic_augment
 from common.utils import get_multiscale_list
 from enum import Enum
+
+import torch
+from torch.nn import Sequential
 
 
 class AugmentMode(Enum):
@@ -198,7 +201,7 @@ def preprocess_true_boxes(true_boxes, input_shape, anchors, num_classes, multi_a
     return y_true
 
 
-class Yolo3DataGenerator(Sequence):
+class Yolo3DataGenerator(Sequential):
     def __init__(self, annotation_lines, batch_size, input_shape, anchors, num_classes, enhance_augment=None,
                  rescale_interval=-1, multi_anchor_assign=False, shuffle=True, **kwargs):
         self.annotation_lines = annotation_lines
