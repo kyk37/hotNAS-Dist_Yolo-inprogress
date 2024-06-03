@@ -13,12 +13,12 @@ import datetime
 import copy
 
 
-
+## Create this space
 def xception_space(model, dna, hw_cconv, hw_dconv, args):
     pass
 
 
-
+## TODO Make this
 def get_space():
     global p3size
     # p3size = 3
@@ -30,6 +30,7 @@ def get_space():
 
 return space_name, space
 
+## TODO VERIFY THIS
 def dna_analysis(dna, logger):
     global p3size
 
@@ -80,9 +81,9 @@ if __name__ == "__main__":
             dna.append(random.choice(selection))
         print(dna)
 
+        ### -----   modify this "dna"  ----- #####
+        ## TODO
         pat_point, exp_point, ch_point, quant_point, comm_point = dna[0:4], dna[4], dna[5:10], dna[10:18], dna[18:21]
-        model = resnet_18_space(model, pat_point, exp_point, ch_point, quant_point, args)
-
         model,DHW,CHW = xception_space(model, dna, DHW, CHW, args)
 
         model = model.to(args.device)

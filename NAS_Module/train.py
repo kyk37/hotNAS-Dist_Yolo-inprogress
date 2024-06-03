@@ -259,6 +259,7 @@ def main(args, dna, ori_HW, data_loader, data_loader_test, ori_HW_dconv=[]):
             model,ori_HW, ori_HW_dconv = ss_proxyless_mobile.proxyless_mobile_space(model, dna, HW_cconv, HW_dconv ,args)
         elif args.model == "xception":
             HW_cconv = copy.deepcopy(ori_HW)
+            ##TODO Verify if all arguments are needed
             model, ori_HW = ss_xception.xception_space(model, dna, HW_cconv, HW_dconv, args)
         else:
             print("Currently not support the given model {}".format("args.model"))
@@ -281,6 +282,7 @@ def main(args, dna, ori_HW, data_loader, data_loader_test, ori_HW_dconv=[]):
             model, ori_HW = ss_densenet121_cifar.densenet121_space(model, dna, HW_cconv, args)
         elif args.model == "xception":
             HW_cconv = copy.deepcopy(ori_HW)
+            ##TODO verify if all arguments are needed
             model, ori_HW = ss_xception.xception_space(model, dna, HW_cconv, HW_dconv, args)
         else:
             print("Currently not support the given model {}".format("args.model"))
