@@ -99,7 +99,7 @@ def main(args):
 
 
     #https://lightning.ai/docs/pytorch/1.6.0/api/pytorch_lightning.trainer.trainer.Trainer.html
-    trainer = Trainer(profiler=profiler, logger=logging, detect_anomaly=True) #Detect anomoly is "TerminateOnNan"
+    trainer = Trainer(logger=logging, profiler=profiler, detect_anomaly=True) #Detect anomoly is "TerminateOnNan"
     callbacks=[logging, checkpoint, reduce_lr, early_stopping]
 
     # get train&val dataset
@@ -158,6 +158,7 @@ def main(args):
     else:
         raise ValueError('Unsupported anchors number')
 
+
     # prepare online evaluation callback
     if args.eval_online:
         eval_callback = EvalCallBack(args.model_type, dataset[num_train:], anchors, class_names, args.model_image_size, args.model_pruning, log_dir, eval_epoch_interval=args.eval_epoch_interval, save_eval_checkpoint=args.save_eval_checkpoint, elim_grid_sense=args.elim_grid_sense)
@@ -200,6 +201,17 @@ def main(args):
     epochs = initial_epoch + args.transfer_epoch
     print("Transfer training stage")
     print('Train on {} samples, val on {} samples, with batch size {}, input_shape {}.'.format(num_train, num_val, args.batch_size, input_shape))
+
+    #replicating model.fit_generator() in pytorch lightning uses trainer.fit() ~Kyle
+    #Trainer.fit(model, train_dataloaders=None, val_dataloaders=None, datamodule=None, ckpt_path=None)
+    #model must be a lightning model, to make changes to trainer call it directly
+    #TODO: Make changes to the Trainer() to match fit_generator 
+    trainer = Trainer()
+    trainer.fit()
+
+
+    #Trains the model according to a fixed number of epochs
+    # fit_generator was depreciated in TF 2.2+, just use .fit for projects
     #model.fit_generator(train_data_generator,
     # model.fit_generator(data_generator(dataset[:num_train], args.batch_size, input_shape, anchors, num_classes, args.enhance_augment, rescale_interval, multi_anchor_assign=args.multi_anchor_assign),
     #         steps_per_epoch=max(1, num_train//args.batch_size),
@@ -214,6 +226,9 @@ def main(args):
     #         max_queue_size=10,
     #         callbacks=callbacks)
 
+
+
+
     # Wait 2 seconds for next stage
     time.sleep(2)
 
@@ -225,21 +240,35 @@ def main(args):
         decay_steps = steps_per_epoch * (args.total_epoch - args.init_epoch - args.transfer_epoch)
         optimizer = get_optimizer(args.optimizer, args.learning_rate, decay_type=args.decay_type, decay_steps=decay_steps)
 
+
     # Unfreeze the whole network for further tuning
     # NOTE: more GPU memory is required after unfreezing the body
     print("Unfreeze and continue training, to fine-tune.")
     if args.gpu_num >= 2:
         with strategy.scope():
             for i in range(len(model.layers)):
-                model.layers[i].trainable = True
-            model.compile(optimizer=optimizer, loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
-
+                model.layers[i].trainable = True  #TODO: this may need changed to param.requires_grad = True or similar ~Kyle
+            #Configure model for training
+            #model.compile(optimizer=optimizer, loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
+            #TODO #Kyle ~Identify if there is pytorch/lightning equivalent for this
+            #~ Adjust the optimizer that is used
     else:
         for i in range(len(model.layers)):
-            model.layers[i].trainable = True
-        model.compile(optimizer=optimizer, loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
+            model.layers[i].trainable = True #TODO: this may need changed to param.requires_grad = True or similar ~Kyle
+        #model.compile(optimizer=optimizer, loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
+        #TODO #Kyle ~Identify if there is pytorch/lightning equivalent for this
+        #~Adjust optimizer after unfreezing layers
+
+
 
     print('Train on {} samples, val on {} samples, with batch size {}, input_shape {}.'.format(num_train, num_val, args.batch_size, input_shape))
+    #replicating model.fit_generator() in pytorch lightning uses trainer.fit() ~Kyle
+
+
+
+    
+    #Trains the model according to a fixed number of epochs
+    # fit_generator was depreciated in TF 2.2+, just use .fit for projects
     #model.fit_generator(train_data_generator,
     # model.fit_generator(data_generator(dataset[:num_train], args.batch_size, input_shape, anchors, num_classes, args.enhance_augment, rescale_interval, multi_anchor_assign=args.multi_anchor_assign),
     #     steps_per_epoch=max(1, num_train//args.batch_size),

@@ -11,6 +11,9 @@ from torch import nn
 import torch.nn.utils.prune as prune
 import torch.nn.functional as F
 import math
+import pytorch_lightning
+from pytorch_lightning import ModelPruning
+
 
 def add_metrics(model, metric_dict):
     '''
@@ -36,6 +39,7 @@ def polynomial_decay(epoch, max_epochs, initial_lr, final_lr, power):
     return ((initial_lr - final_lr) * (1 - epoch / max_epochs) ** power) + final_lr
 
 
+## may convert this to pytorch lightning?
 def get_pruning_model(model, begin_step, end_step):
     ## Notes use torch.optim.get_lr_scheduler.PolynomialLR #https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.PolynomialLR.html
     # decays learning rate given total iters.
@@ -50,7 +54,8 @@ def get_pruning_model(model, begin_step, end_step):
     scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: polynomial_decay(epoch, max_epochs, initial_lr, final_lr, power))
 
     ## send model to be pruned prune 70% of model
-    pruning_model = nn.utils.prune.RandomUnstructured(scheduler, name="weight", amount=0.7)
+    pruning_model = prune.RandomUnstructured(scheduler, name="weight", amount=0.7)
+
 
     return pruning_model
 

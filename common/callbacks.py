@@ -13,6 +13,13 @@ from yolo2.model import get_yolo2_model
 from eval import eval_AP
 
 
+
+
+import torch
+from pytorch_lightning import Callback
+import torch.nn.utils.prune as prune
+
+
 class DatasetShuffleCallBack(Callback):
     def __init__(self, dataset):
         self.dataset = dataset
@@ -64,8 +71,12 @@ class EvalCallBack(Callback):
         os.remove(tmp_weights_path)
 
         if self.model_pruning:
-            eval_model = sparsity.strip_pruning(self.eval_model)
+            #remove any pruning,ask on the model
+            #eval_model = sparsity.strip_pruning(self.eval_model)
+            eval_model = prune.RandomUnstructured(scheduler, name="weight", amount=0.0)
+            #to delete "prune" p
         else:
+            #maintain pruning
             eval_model = self.eval_model
 
         return eval_model
