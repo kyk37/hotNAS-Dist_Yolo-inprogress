@@ -3,13 +3,13 @@
 """custom model callbacks."""
 import os, sys, random, tempfile
 import numpy as np
-from tensorflow_model_optimization.sparsity import keras as sparsity
+#from tensorflow_model_optimization.sparsity import keras as sparsity
 #from tensorflow.keras.models import Model
-from tensorflow.keras.callbacks import Callback
+#from tensorflow.keras.callbacks import Callback
 
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
 from yolo3.model import get_yolo3_model
-from yolo2.model import get_yolo2_model
+# from yolo2.model import get_yolo2_model
 from eval import eval_AP
 
 

@@ -12,9 +12,8 @@ from functools import partial
 # from tensorflow.keras.optimizers import Adam
 
 import torch
-from torch import nn
-from torch import Tensor
-
+from torch import nn, optim, Tensor
+from lightningmodel import LambdaLayer, Input
 
 from yolo3.models.yolo3_darknet import yolo3_body, custom_tiny_yolo3_body, yolo3lite_body, tiny_yolo3lite_body, custom_yolo3_spp_body
 from yolo3.models.yolo3_mobilenet import yolo3_mobilenet_body, tiny_yolo3_mobilenet_body, yolo3lite_mobilenet_body, yolo3lite_spp_mobilenet_body, tiny_yolo3lite_mobilenet_body
@@ -29,13 +28,13 @@ from yolo3.models.yolo3_mobilenetv3_small import yolo3_mobilenetv3small_body, yo
 #from yolo3.models.yolo3_resnet50v2 import yolo3_resnet50v2_body, yolo3lite_resnet50v2_body, yolo3lite_spp_resnet50v2_body, tiny_yolo3_resnet50v2_body, tiny_yolo3lite_resnet50v2_body
 
 
-from yolo4.models.yolo4_darknet import yolo4_body
-from yolo4.models.yolo4_mobilenet import yolo4_mobilenet_body, yolo4lite_mobilenet_body, tiny_yolo4_mobilenet_body, tiny_yolo4lite_mobilenet_body
-from yolo4.models.yolo4_mobilenetv2 import yolo4_mobilenetv2_body, yolo4lite_mobilenetv2_body, tiny_yolo4_mobilenetv2_body, tiny_yolo4lite_mobilenetv2_body
+# from yolo4.models.yolo4_darknet import yolo4_body
+# from yolo4.models.yolo4_mobilenet import yolo4_mobilenet_body, yolo4lite_mobilenet_body, tiny_yolo4_mobilenet_body, tiny_yolo4lite_mobilenet_body
+# from yolo4.models.yolo4_mobilenetv2 import yolo4_mobilenetv2_body, yolo4lite_mobilenetv2_body, tiny_yolo4_mobilenetv2_body, tiny_yolo4lite_mobilenetv2_body
 
-from yolo4.models.yolo4_mobilenetv3_large import yolo4_mobilenetv3large_body, yolo4lite_mobilenetv3large_body, tiny_yolo4_mobilenetv3large_body, tiny_yolo4lite_mobilenetv3large_body
-from yolo4.models.yolo4_mobilenetv3_small import yolo4_mobilenetv3small_body, yolo4lite_mobilenetv3small_body, tiny_yolo4_mobilenetv3small_body, tiny_yolo4lite_mobilenetv3small_body
-from yolo4.models.yolo4_efficientnet import yolo4_efficientnet_body, yolo4lite_efficientnet_body, tiny_yolo4_efficientnet_body, tiny_yolo4lite_efficientnet_body
+# from yolo4.models.yolo4_mobilenetv3_large import yolo4_mobilenetv3large_body, yolo4lite_mobilenetv3large_body, tiny_yolo4_mobilenetv3large_body, tiny_yolo4lite_mobilenetv3large_body
+# from yolo4.models.yolo4_mobilenetv3_small import yolo4_mobilenetv3small_body, yolo4lite_mobilenetv3small_body, tiny_yolo4_mobilenetv3small_body, tiny_yolo4lite_mobilenetv3small_body
+# from yolo4.models.yolo4_efficientnet import yolo4_efficientnet_body, yolo4lite_efficientnet_body, tiny_yolo4_efficientnet_body, tiny_yolo4lite_efficientnet_body
 #from yolo4.models.yolo4_resnet50v2 import yolo4_resnet50v2_body, yolo4lite_resnet50v2_body, tiny_yolo4_resnet50v2_body, tiny_yolo4lite_resnet50v2_body
 
 from yolo3.loss import yolo3_loss
@@ -89,26 +88,6 @@ yolo3_model_map = {
 
     'yolo3_nano': [yolo3_nano_body, 268, None],
 
-    'yolo4_darknet': [yolo4_body, 250, 'weights/cspdarknet53.h5'],
-    'yolo4_mobilenet': [yolo4_mobilenet_body, 87, None],
-    'yolo4_mobilenet_lite': [yolo4lite_mobilenet_body, 87, None],
-
-    'yolo4_mobilenetv2': [yolo4_mobilenetv2_body, 155, None],
-    'yolo4_mobilenetv2_lite': [yolo4lite_mobilenetv2_body, 155, None],
-
-    'yolo4_mobilenetv3large': [yolo4_mobilenetv3large_body, 195, None],
-    'yolo4_mobilenetv3large_lite': [yolo4lite_mobilenetv3large_body, 195, None],
-    'yolo4_mobilenetv3small': [yolo4_mobilenetv3small_body, 166, None],
-    'yolo4_mobilenetv3small_lite': [yolo4lite_mobilenetv3small_body, 166, None],
-
-    #'yolo4_resnet50v2': [yolo4_resnet50v2_body, 190, None],
-    #'yolo4_resnet50v2_lite': [yolo4lite_resnet50v2_body, 190, None],
-
-    # NOTE: backbone_length is for EfficientNetB1
-    # if change to other efficientnet level, you need to modify it
-    'yolo4_efficientnet': [yolo4_efficientnet_body, 337, None],
-    'yolo4_efficientnet_lite': [yolo4lite_efficientnet_body, 337, None],
-
 }
 
 
@@ -148,37 +127,16 @@ yolo3_tiny_model_map = {
     'tiny_yolo3_xception': [tiny_yolo3_xception_body, 132, None],
     'tiny_yolo3_xception_lite': [tiny_yolo3lite_xception_body, 132, None],
 
-    'tiny_yolo4_mobilenet': [tiny_yolo4_mobilenet_body, 87, None],
-    'tiny_yolo4_mobilenet_lite': [tiny_yolo4lite_mobilenet_body, 87, None],
-    'tiny_yolo4_mobilenet_lite_nospp': [partial(tiny_yolo4lite_mobilenet_body, use_spp=False), 87, None],
-    'tiny_yolo4_mobilenetv2': [tiny_yolo4_mobilenetv2_body, 155, None],
-    'tiny_yolo4_mobilenetv2_lite': [tiny_yolo4lite_mobilenetv2_body, 155, None],
-    'tiny_yolo4_mobilenetv2_lite_nospp': [partial(tiny_yolo4lite_mobilenetv2_body, use_spp=False), 155, None],
-
-    'tiny_yolo4_mobilenetv3large': [tiny_yolo4_mobilenetv3large_body, 195, None],
-    'tiny_yolo4_mobilenetv3large_lite': [tiny_yolo4lite_mobilenetv3large_body, 195, None],
-    'tiny_yolo4_mobilenetv3large_lite_nospp': [partial(tiny_yolo4lite_mobilenetv3large_body, use_spp=False), 195, None],
-
-    'tiny_yolo4_mobilenetv3small': [tiny_yolo4_mobilenetv3small_body, 166, None],
-    'tiny_yolo4_mobilenetv3small_lite': [tiny_yolo4lite_mobilenetv3small_body, 166, None],
-    'tiny_yolo4_mobilenetv3small_lite_nospp': [partial(tiny_yolo4lite_mobilenetv3small_body, use_spp=False), 166, None],
-
-    #'tiny_yolo4_resnet50v2': [tiny_yolo4_resnet50v2_body, 190, None],
-    #'tiny_yolo4_resnet50v2_lite': [tiny_yolo4lite_resnet50v2_body, 190, None],
-
-    # NOTE: backbone_length is for EfficientNetB0
-    # if change to other efficientnet level, you need to modify it
-    'tiny_yolo4_efficientnet': [tiny_yolo4_efficientnet_body, 235, None],
-    'tiny_yolo4_efficientnet_lite': [tiny_yolo4lite_efficientnet_body, 235, None],
-    'tiny_yolo4_efficientnet_lite_nospp': [partial(tiny_yolo4lite_efficientnet_body, use_spp=False), 235, None],
-
 }
+
+
 
 
 
 
 def get_yolo3_model(model_type, num_feature_layers, num_anchors, num_classes, input_tensor=None, input_shape=None, model_pruning=False, pruning_end_step=10000):
     #prepare input tensor
+    #TODO: Note there is no "Input" in pytorch. Identify if "Input"
     if input_shape:
         input_tensor = Input(shape=input_shape, name='image_input')
 
@@ -222,7 +180,8 @@ def get_yolo3_model(model_type, num_feature_layers, num_anchors, num_classes, in
 
 
 
-def get_yolo3_train_model(model_type, anchors, num_classes, weights_path=None, freeze_level=1, optimizer=Adam(lr=1e-3, decay=0), label_smoothing=0, elim_grid_sense=False, model_pruning=False, pruning_end_step=10000):
+
+def get_yolo3_train_model(model_type, anchors, num_classes, weights_path=None, freeze_level=1, optimizer=optim.Adam(lr=1e-3, decay=0), label_smoothing=0, elim_grid_sense=False, model_pruning=False, pruning_end_step=10000):
     '''create the training model, for YOLOv3'''
     #K.clear_session() # get a new session
     num_anchors = len(anchors)
@@ -257,8 +216,9 @@ def get_yolo3_train_model(model_type, anchors, num_classes, weights_path=None, f
         for i in range(len(model_body.layers)):
             model_body.layers[i].trainable= True
         print('Unfreeze all of the layers.')
-
-    model_loss, location_loss, confidence_loss, class_loss, dist_loss = Lambda(yolo3_loss, name='yolo_loss',
+    
+    ## Verify this is right ~Kyle
+    model_loss, location_loss, confidence_loss, class_loss, dist_loss = LambdaLayer(yolo3_loss, name='yolo_loss',
             arguments={'anchors': anchors, 'num_classes': num_classes, 'ignore_thresh': 0.5, 'label_smoothing': label_smoothing, 'elim_grid_sense': elim_grid_sense, 'use_diou_loss' : False})(
         [*model_body.output, *y_true])
 
@@ -292,7 +252,7 @@ def get_yolo3_inference_model(model_type, anchors, num_classes, weights_path=Non
         model_body.load_weights(weights_path, by_name=False)#, skip_mismatch=True)
         print('Load weights {}.'.format(weights_path))
 
-    boxes, scores, classes = Lambda(batched_yolo3_postprocess, name='yolo3_postprocess',
+    boxes, scores, classes = LambdaLayer(batched_yolo3_postprocess, name='yolo3_postprocess',
             arguments={'anchors': anchors, 'num_classes': num_classes, 'confidence': confidence, 'elim_grid_sense': elim_grid_sense})(
         [*model_body.output, image_shape])
     model = Model([model_body.input, image_shape], [boxes, scores, classes])

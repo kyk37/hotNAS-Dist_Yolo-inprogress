@@ -19,8 +19,6 @@ import numpy as np
 
 from yolo3.model import get_yolo3_train_model
 from yolo3.data import yolo3_data_generator_wrapper, Yolo3DataGenerator
-from yolo2.model import get_yolo2_train_model
-from yolo2.data import yolo2_data_generator_wrapper, Yolo2DataGenerator
 from common.utils import get_classes, get_anchors, get_dataset, optimize_tf_gpu
 from common.model_utils import get_optimizer
 from common.callbacks import EvalCallBack, DatasetShuffleCallBack
@@ -145,16 +143,6 @@ def main(args):
         #val_data_generator = Yolo3DataGenerator(dataset[num_train:], args.batch_size, input_shape, anchors, num_classes, multi_anchor_assign=args.multi_anchor_assign)
 
         tiny_version = True
-    elif num_anchors == 5:
-        # YOLOv2 use 5 anchors
-        get_train_model = get_yolo2_train_model
-        data_generator = yolo2_data_generator_wrapper
-
-        # tf.keras.Sequence style data generator
-        #train_data_generator = Yolo2DataGenerator(dataset[:num_train], args.batch_size, input_shape, anchors, num_classes, args.enhance_augment, rescale_interval)
-        #val_data_generator = Yolo2DataGenerator(dataset[num_train:], args.batch_size, input_shape, anchors, num_classes)
-
-        tiny_version = False
     else:
         raise ValueError('Unsupported anchors number')
 
@@ -181,19 +169,20 @@ def main(args):
     optimizer.clipnorm = True
 
     # support multi-gpu training
-    if args.gpu_num >= 2:
+    #if args.gpu_num >= 2:
         # devices_list=["/gpu:0", "/gpu:1"]
-        devices_list=["/gpu:{}".format(n) for n in range(args.gpu_num)]
-        strategy = tf.distribute.MirroredStrategy(devices=devices_list)
-        print ('Number of devices: {}'.format(strategy.num_replicas_in_sync))
-        with strategy.scope():
+ #       devices_list=["/gpu:{}".format(n) for n in range(args.gpu_num)]
+        #strategy = tf.distribute.MirroredStrategy(devices=devices_list)
+        #print ('Number of devices: {}'.format(strategy.num_replicas_in_sync))
+       #with strategy.scope():
             # get multi-gpu train model
-            model = get_train_model(args.model_type, anchors, num_classes, weights_path=args.weights_path, freeze_level=freeze_level, optimizer=optimizer, label_smoothing=args.label_smoothing, elim_grid_sense=args.elim_grid_sense, model_pruning=args.model_pruning, pruning_end_step=pruning_end_step)
-
-    else:
+       #     model = get_train_model(args.model_type, anchors, num_classes, weights_path=args.weights_path, freeze_level=freeze_level, optimizer=optimizer, label_smoothing=args.label_smoothing, elim_grid_sense=args.elim_grid_sense, model_pruning=args.model_pruning, pruning_end_step=pruning_end_step)
+ #   else:
         # get normal train model
-        model = get_train_model(args.model_type, anchors, num_classes, weights_path=args.weights_path, freeze_level=freeze_level, optimizer=optimizer, label_smoothing=args.label_smoothing, elim_grid_sense=args.elim_grid_sense, model_pruning=args.model_pruning, pruning_end_step=pruning_end_step)
+#        model = get_train_model(args.model_type, anchors, num_classes, weights_path=args.weights_path, freeze_level=freeze_level, optimizer=optimizer, label_smoothing=args.label_smoothing, elim_grid_sense=args.elim_grid_sense, model_pruning=args.model_pruning, pruning_end_step=pruning_end_step)
 
+
+    model = get_train_model(args.model_type, anchors, num_classes, weights_path=args.weights_path, freeze_level=freeze_level, optimizer=optimizer, label_smoothing=args.label_smoothing, elim_grid_sense=args.elim_grid_sense, model_pruning=args.model_pruning, pruning_end_step=pruning_end_step)
     model.summary()
 
     # Transfer training some epochs with frozen layers first if needed, to get a stable loss.
