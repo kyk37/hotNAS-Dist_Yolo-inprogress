@@ -40,7 +40,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 
-#optimize_tf_gpu(model)
+#optimize_pytorch_gpu(model)
 def main(args):
     dataset_working_directory = args.dataset_working_directory
     annotation_file = args.annotation_file
@@ -168,6 +168,8 @@ def main(args):
     optimizer = get_optimizer(args.optimizer, args.learning_rate, decay_type=None)  # args.learning_rate, decay_type=None)
     optimizer.clipnorm = True
 
+
+
     # support multi-gpu training
     #if args.gpu_num >= 2:
         # devices_list=["/gpu:0", "/gpu:1"]
@@ -181,7 +183,9 @@ def main(args):
         # get normal train model
 #        model = get_train_model(args.model_type, anchors, num_classes, weights_path=args.weights_path, freeze_level=freeze_level, optimizer=optimizer, label_smoothing=args.label_smoothing, elim_grid_sense=args.elim_grid_sense, model_pruning=args.model_pruning, pruning_end_step=pruning_end_step)
 
-
+    #No need for multi-gpu, set manually via pytorch 
+    # if using multiple gpu use below fcn
+    # optimize_pytorch_gpu(model)
     model = get_train_model(args.model_type, anchors, num_classes, weights_path=args.weights_path, freeze_level=freeze_level, optimizer=optimizer, label_smoothing=args.label_smoothing, elim_grid_sense=args.elim_grid_sense, model_pruning=args.model_pruning, pruning_end_step=pruning_end_step)
     model.summary()
 
@@ -233,27 +237,25 @@ def main(args):
     # Unfreeze the whole network for further tuning
     # NOTE: more GPU memory is required after unfreezing the body
     print("Unfreeze and continue training, to fine-tune.")
-    if args.gpu_num >= 2:
-        with strategy.scope():
-            for i in range(len(model.layers)):
-                model.layers[i].trainable = True  #TODO: this may need changed to param.requires_grad = True or similar ~Kyle
+
+
+    # if args.gpu_num >= 2:
+    #     with strategy.scope():
+    #         for i in range(len(model.layers)):
+    #             model.layers[i].trainable = True  #TODO: this may need changed to param.requires_grad = True or similar ~Kyle
             #Configure model for training
             #model.compile(optimizer=optimizer, loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
             #TODO #Kyle ~Identify if there is pytorch/lightning equivalent for this
             #~ Adjust the optimizer that is used
-    else:
-        for i in range(len(model.layers)):
-            model.layers[i].trainable = True #TODO: this may need changed to param.requires_grad = True or similar ~Kyle
+    # else:
+    #     for i in range(len(model.layers)):
+    #         model.layers[i].trainable = True #TODO: this may need changed to param.requires_grad = True or similar ~Kyle
         #model.compile(optimizer=optimizer, loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
         #TODO #Kyle ~Identify if there is pytorch/lightning equivalent for this
         #~Adjust optimizer after unfreezing layers
 
-
-
     print('Train on {} samples, val on {} samples, with batch size {}, input_shape {}.'.format(num_train, num_val, args.batch_size, input_shape))
     #replicating model.fit_generator() in pytorch lightning uses trainer.fit() ~Kyle
-
-
 
     
     #Trains the model according to a fixed number of epochs

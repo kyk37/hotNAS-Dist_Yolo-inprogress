@@ -11,13 +11,14 @@ from matplotlib.colors import rgb_to_hsv, hsv_to_rgb
 
 from common.backbones.efficientnet import swish
 from common.backbones.mobilenet_v3 import hard_sigmoid, hard_swish
-from yolo4.models.layers import mish
+
+#from yolo4.models.layers import mish
 #import tensorflow as tf
 
 import torch
 from torch import nn
 
-def optimize_tf_gpu(model):
+def optimize_pytorch_gpu(model):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     #enable all GPUs to be used
     model = nn.DataParallel(model)
@@ -46,8 +47,6 @@ def optimize_tf_gpu(model):
 #         K.set_session(session)
 
 
-
-
 def get_custom_objects():
     '''
     form up a custom_objects dict so that the customized
@@ -55,7 +54,7 @@ def get_custom_objects():
     .h5 model is loading or converting
     '''
     custom_objects_dict = {
-        'tf': tf,
+        'tf': tf,# Tensorflow
         'swish': swish,
         'hard_sigmoid': hard_sigmoid,
         'hard_swish': hard_swish,
@@ -63,6 +62,10 @@ def get_custom_objects():
     }
 
     return custom_objects_dict
+
+def mish(x):
+    return x * torch.tanh(nn.Softplus(x))
+
 
 
 def get_multiscale_list():

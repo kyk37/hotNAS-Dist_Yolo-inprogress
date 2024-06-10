@@ -43,3 +43,15 @@ class Input(nn.Module):
             raise ValueError(f"Input shape must be {self.shape} but got {tensor_shape} instead")
         
         return (x.to(self.device, self.dtype, self.name))
+
+## Attempt to recreate part of "Model()" class. Uncertain of it's usefulness
+class Model(nn.Module):
+    def __init__(self):
+        super(Model, self).__init__()
+        self.layer1 = nn.LazyLinear(32)
+        self.layer2 = nn.LazyLinear(5)
+
+    def call(self, inputs):
+        x = nn.ReLU(self.layer1(inputs))
+        x = nn.Softmax(self.layer2(x), dim=1)
+        return self.layer2(x)

@@ -54,7 +54,8 @@ class EvalCallBack(Callback):
 
         if num_anchors == 5:
             # YOLOv2 use 5 anchors
-            eval_model, _ = get_yolo2_model(self.model_type, num_anchors, num_classes, input_shape=self.model_image_size + (3,), model_pruning=self.model_pruning)
+            #eval_model, _ = get_yolo2_model(self.model_type, num_anchors, num_classes, input_shape=self.model_image_size + (3,), model_pruning=self.model_pruning)
+            pass
         else:
             eval_model, _ = get_yolo3_model(self.model_type, num_feature_layers, num_anchors, num_classes, input_shape=self.model_image_size + (3,), model_pruning=self.model_pruning)
 
@@ -73,7 +74,7 @@ class EvalCallBack(Callback):
         if self.model_pruning:
             #remove any pruning,ask on the model
             #eval_model = sparsity.strip_pruning(self.eval_model)
-            eval_model = prune.RandomUnstructured(scheduler, name="weight", amount=0.0)
+            eval_model = prune.RandomUnstructured(self.model, name="weight", amount=0.0)
             #to delete "prune" p
         else:
             #maintain pruning
