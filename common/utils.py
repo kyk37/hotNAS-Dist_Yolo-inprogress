@@ -24,6 +24,7 @@ def optimize_pytorch_gpu(model):
     model = nn.DataParallel(model)
     # model = nn.DataParallel(model, device_ids = [0,1])
     model.to(device)
+    return device
 
 # def optimize_tf_gpu(tf, K):
 #     if tf.__version__.startswith('2'):

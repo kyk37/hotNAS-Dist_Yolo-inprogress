@@ -19,7 +19,7 @@ import numpy as np
 
 from yolo3.model import get_yolo3_train_model
 from yolo3.data import yolo3_data_generator_wrapper, Yolo3DataGenerator
-from common.utils import get_classes, get_anchors, get_dataset, optimize_tf_gpu
+from common.utils import get_classes, get_anchors, get_dataset, optimize_pytorch_gpu
 from common.model_utils import get_optimizer
 from common.callbacks import EvalCallBack, DatasetShuffleCallBack
 from datetime import datetime
@@ -40,7 +40,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 
-#optimize_pytorch_gpu(model)
+
 def main(args):
     dataset_working_directory = args.dataset_working_directory
     annotation_file = args.annotation_file
@@ -98,7 +98,7 @@ def main(args):
 
     #https://lightning.ai/docs/pytorch/1.6.0/api/pytorch_lightning.trainer.trainer.Trainer.html
     trainer = Trainer(logger=logging, profiler=profiler, detect_anomaly=True) #Detect anomoly is "TerminateOnNan"
-    callbacks=[logging, checkpoint, reduce_lr, early_stopping]
+    callbacks = [logging, checkpoint, reduce_lr, early_stopping]
 
     # get train&val dataset
     dataset = get_dataset(annotation_file, dataset_working_directory)
@@ -178,47 +178,32 @@ def main(args):
         #print ('Number of devices: {}'.format(strategy.num_replicas_in_sync))
        #with strategy.scope():
             # get multi-gpu train model
-       #     model = get_train_model(args.model_type, anchors, num_classes, weights_path=args.weights_path, freeze_level=freeze_level, optimizer=optimizer, label_smoothing=args.label_smoothing, elim_grid_sense=args.elim_grid_sense, model_pruning=args.model_pruning, pruning_end_step=pruning_end_step)
+       # model = get_train_model(args.model_type, anchors, num_classes, weights_path=args.weights_path, freeze_level=freeze_level, optimizer=optimizer, label_smoothing=args.label_smoothing, elim_grid_sense=args.elim_grid_sense, model_pruning=args.model_pruning, pruning_end_step=pruning_end_step)
  #   else:
         # get normal train model
 #        model = get_train_model(args.model_type, anchors, num_classes, weights_path=args.weights_path, freeze_level=freeze_level, optimizer=optimizer, label_smoothing=args.label_smoothing, elim_grid_sense=args.elim_grid_sense, model_pruning=args.model_pruning, pruning_end_step=pruning_end_step)
 
-    #No need for multi-gpu, set manually via pytorch 
-    # if using multiple gpu use below fcn
-    # optimize_pytorch_gpu(model)
+    #Ignoring multi-gpu training type Keras uses.
     model = get_train_model(args.model_type, anchors, num_classes, weights_path=args.weights_path, freeze_level=freeze_level, optimizer=optimizer, label_smoothing=args.label_smoothing, elim_grid_sense=args.elim_grid_sense, model_pruning=args.model_pruning, pruning_end_step=pruning_end_step)
     model.summary()
 
-    # Transfer training some epochs with frozen layers first if needed, to get a stable loss.
+
+    #Set device. Parallel enabled, can also select # devices for training in Trainer(devices= ,)
+    DEVICE = optimize_pytorch_gpu(model)
     initial_epoch = args.init_epoch
     epochs = initial_epoch + args.transfer_epoch
     print("Transfer training stage")
     print('Train on {} samples, val on {} samples, with batch size {}, input_shape {}.'.format(num_train, num_val, args.batch_size, input_shape))
 
-    #replicating model.fit_generator() in pytorch lightning uses trainer.fit() ~Kyle
-    #Trainer.fit(model, train_dataloaders=None, val_dataloaders=None, datamodule=None, ckpt_path=None)
-    #model must be a lightning model, to make changes to trainer call it directly
-    #TODO: Make changes to the Trainer() to match fit_generator 
-    trainer = Trainer()
-    trainer.fit()
-
-
-    #Trains the model according to a fixed number of epochs
-    # fit_generator was depreciated in TF 2.2+, just use .fit for projects
-    #model.fit_generator(train_data_generator,
-    # model.fit_generator(data_generator(dataset[:num_train], args.batch_size, input_shape, anchors, num_classes, args.enhance_augment, rescale_interval, multi_anchor_assign=args.multi_anchor_assign),
-    #         steps_per_epoch=max(1, num_train//args.batch_size),
-    #         #validation_data=val_data_generator,
-    #         validation_data=data_generator(dataset[num_train:], args.batch_size, input_shape, anchors, num_classes, multi_anchor_assign=args.multi_anchor_assign),
-    #         validation_steps=max(1, num_val//args.batch_size),
-    #         epochs=epochs,
-    #         initial_epoch=initial_epoch,
-    #         #verbose=1,
-    #         workers=1,
-    #         use_multiprocessing=False,
-    #         max_queue_size=10,
-    #         callbacks=callbacks)
-
+    
+    #Customize trainer via flags
+    trainer = Trainer(accelerator=DEVICE, devices= "auto", logger=logging, callbacks=callbacks, max_epochs=epochs, profiler=profiler, detect_anomaly=True)
+    # Runs full optimization route
+    # fit(model, training dataloader, val dataloader, datamodule, ckpt path)
+    trainer.fit(model, 
+                train_dataloaders=data_generator(dataset[:num_train], args.batch_size, input_shape, anchors, num_classes, args.enhance_augment, rescale_interval, multi_anchor_assign=args.multi_anchor_assign), 
+                val_dataloaders=data_generator(dataset[num_train:], args.batch_size, input_shape, anchors, num_classes, multi_anchor_assign=args.multi_anchor_assign),
+                ckpt_path=None )
 
 
 
@@ -238,7 +223,9 @@ def main(args):
     # NOTE: more GPU memory is required after unfreezing the body
     print("Unfreeze and continue training, to fine-tune.")
 
-
+    #
+    # TODO: THIS SEGMENT BELOW! Figure out how to unfreeze layers and "compile" for next run! ~Kyle
+    #
     # if args.gpu_num >= 2:
     #     with strategy.scope():
     #         for i in range(len(model.layers)):
@@ -258,23 +245,12 @@ def main(args):
     #replicating model.fit_generator() in pytorch lightning uses trainer.fit() ~Kyle
 
     
-    #Trains the model according to a fixed number of epochs
-    # fit_generator was depreciated in TF 2.2+, just use .fit for projects
-    #model.fit_generator(train_data_generator,
-    # model.fit_generator(data_generator(dataset[:num_train], args.batch_size, input_shape, anchors, num_classes, args.enhance_augment, rescale_interval, multi_anchor_assign=args.multi_anchor_assign),
-    #     steps_per_epoch=max(1, num_train//args.batch_size),
-    #     #validation_data=val_data_generator,
-    #     validation_data=data_generator(dataset[num_train:], args.batch_size, input_shape, anchors, num_classes, multi_anchor_assign=args.multi_anchor_assign),
-    #     validation_steps=max(1, num_val//args.batch_size),
-    #     epochs=args.total_epoch,
-    #     initial_epoch=epochs,
-    #     #verbose=1,
-    #     workers=1,
-    #     use_multiprocessing=False,
-    #     max_queue_size=10,
-    #     callbacks=callbacks)
 
-
+    trainer = Trainer(accelerator=DEVICE, devices= "auto", logger=logging, callbacks=callbacks, max_epochs=epochs, profiler=profiler, detect_anomaly=True)
+    trainer.fit(model, 
+                train_dataloaders=data_generator(dataset[:num_train], args.batch_size, input_shape, anchors, num_classes, args.enhance_augment, rescale_interval, multi_anchor_assign=args.multi_anchor_assign), 
+                val_dataloaders=data_generator(dataset[num_train:], args.batch_size, input_shape, anchors, num_classes, multi_anchor_assign=args.multi_anchor_assign),
+                ckpt_path=None )
 
     # Finally store model
     if args.model_pruning:
@@ -502,7 +478,7 @@ if __name__ == '__main__':
 #     print("Transfer training stage")
 #     print('Train on {} samples, val on {} samples, with batch size {}, input_shape {}.'.format(num_train, num_val, args.batch_size, input_shape))
 #     #model.fit_generator(train_data_generator,
-#     model.fit_generator(data_generator(dataset[:num_train], args.batch_size, input_shape, anchors, num_classes, args.enhance_augment, rescale_interval, multi_anchor_assign=args.multi_anchor_assign),
+#             model.fit_generator(data_generator(dataset[:num_train], args.batch_size, input_shape, anchors, num_classes, args.enhance_augment, rescale_interval, multi_anchor_assign=args.multi_anchor_assign),
 #             steps_per_epoch=max(1, num_train//args.batch_size),
 #             #validation_data=val_data_generator,
 #             validation_data=data_generator(dataset[num_train:], args.batch_size, input_shape, anchors, num_classes, multi_anchor_assign=args.multi_anchor_assign),
@@ -542,7 +518,7 @@ if __name__ == '__main__':
 
 #     print('Train on {} samples, val on {} samples, with batch size {}, input_shape {}.'.format(num_train, num_val, args.batch_size, input_shape))
 #     #model.fit_generator(train_data_generator,
-#     model.fit_generator(data_generator(dataset[:num_train], args.batch_size, input_shape, anchors, num_classes, args.enhance_augment, rescale_interval, multi_anchor_assign=args.multi_anchor_assign),
+#         model.fit_generator(data_generator(dataset[:num_train], args.batch_size, input_shape, anchors, num_classes, args.enhance_augment, rescale_interval, multi_anchor_assign=args.multi_anchor_assign),
 #         steps_per_epoch=max(1, num_train//args.batch_size),
 #         #validation_data=val_data_generator,
 #         validation_data=data_generator(dataset[num_train:], args.batch_size, input_shape, anchors, num_classes, multi_anchor_assign=args.multi_anchor_assign),

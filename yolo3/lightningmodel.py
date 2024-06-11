@@ -11,17 +11,22 @@ class LambdaLayer(nn.Module):
         return self.lambd(x)
 
 
+
+# hooks for training 
+# https://lightning.ai/docs/pytorch/stable/common/lightning_module.html#lightning-hooks
 class MyModel(L.LightningModule):
     def __init__(self):
         pass
-
-    def training_step(self, batch, batch_idx):
+    
+    def forward(self, x): #prediction/inference actions
         pass
-
-    def configure_optimizers(self):
+    def training_step(self, batch, batch_idx): #training loop independent of forward
         pass
 
     def validation_step(self, batch, batch_idx):
+        pass
+
+    def configure_optimizers(self):
         pass
 
 class Input(nn.Module):
