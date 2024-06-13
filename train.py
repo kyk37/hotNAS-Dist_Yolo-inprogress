@@ -7,8 +7,6 @@ Retrain the YOLO model for your own dataset.
 ###
 ### run "pip install torch_tb_profiler"
 ### 
-
-
 import os, time, random, argparse
 import numpy as np
 
@@ -168,21 +166,6 @@ def main(args):
     optimizer = get_optimizer(args.optimizer, args.learning_rate, decay_type=None)  # args.learning_rate, decay_type=None)
     optimizer.clipnorm = True
 
-
-
-    # support multi-gpu training
-    #if args.gpu_num >= 2:
-        # devices_list=["/gpu:0", "/gpu:1"]
- #       devices_list=["/gpu:{}".format(n) for n in range(args.gpu_num)]
-        #strategy = tf.distribute.MirroredStrategy(devices=devices_list)
-        #print ('Number of devices: {}'.format(strategy.num_replicas_in_sync))
-       #with strategy.scope():
-            # get multi-gpu train model
-       # model = get_train_model(args.model_type, anchors, num_classes, weights_path=args.weights_path, freeze_level=freeze_level, optimizer=optimizer, label_smoothing=args.label_smoothing, elim_grid_sense=args.elim_grid_sense, model_pruning=args.model_pruning, pruning_end_step=pruning_end_step)
- #   else:
-        # get normal train model
-#        model = get_train_model(args.model_type, anchors, num_classes, weights_path=args.weights_path, freeze_level=freeze_level, optimizer=optimizer, label_smoothing=args.label_smoothing, elim_grid_sense=args.elim_grid_sense, model_pruning=args.model_pruning, pruning_end_step=pruning_end_step)
-
     #Ignoring multi-gpu training type Keras uses.
     model = get_train_model(args.model_type, anchors, num_classes, weights_path=args.weights_path, freeze_level=freeze_level, optimizer=optimizer, label_smoothing=args.label_smoothing, elim_grid_sense=args.elim_grid_sense, model_pruning=args.model_pruning, pruning_end_step=pruning_end_step)
     model.summary()
@@ -223,34 +206,20 @@ def main(args):
     # NOTE: more GPU memory is required after unfreezing the body
     print("Unfreeze and continue training, to fine-tune.")
 
-    #
-    # TODO: THIS SEGMENT BELOW! Figure out how to unfreeze layers and "compile" for next run! ~Kyle
-    #
-    # if args.gpu_num >= 2:
-    #     with strategy.scope():
-    #         for i in range(len(model.layers)):
-    #             model.layers[i].trainable = True  #TODO: this may need changed to param.requires_grad = True or similar ~Kyle
-            #Configure model for training
-            #model.compile(optimizer=optimizer, loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
-            #TODO #Kyle ~Identify if there is pytorch/lightning equivalent for this
-            #~ Adjust the optimizer that is used
-    # else:
-    #     for i in range(len(model.layers)):
-    #         model.layers[i].trainable = True #TODO: this may need changed to param.requires_grad = True or similar ~Kyle
-        #model.compile(optimizer=optimizer, loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
-        #TODO #Kyle ~Identify if there is pytorch/lightning equivalent for this
-        #~Adjust optimizer after unfreezing layers
+    # model.compile(optimizer=optimizer, loss={'yolo_loss': lambda y_true, y_pred: y_pred}) # recompile to apply the change
+
 
     print('Train on {} samples, val on {} samples, with batch size {}, input_shape {}.'.format(num_train, num_val, args.batch_size, input_shape))
-    #replicating model.fit_generator() in pytorch lightning uses trainer.fit() ~Kyle
 
-    
-
+    for i in range(len(model.layers)):
+        model.layers[i].requires_grad = True
+        
     trainer = Trainer(accelerator=DEVICE, devices= "auto", logger=logging, callbacks=callbacks, max_epochs=epochs, profiler=profiler, detect_anomaly=True)
     trainer.fit(model, 
                 train_dataloaders=data_generator(dataset[:num_train], args.batch_size, input_shape, anchors, num_classes, args.enhance_augment, rescale_interval, multi_anchor_assign=args.multi_anchor_assign), 
                 val_dataloaders=data_generator(dataset[num_train:], args.batch_size, input_shape, anchors, num_classes, multi_anchor_assign=args.multi_anchor_assign),
                 ckpt_path=None )
+
 
     # Finally store model
     if args.model_pruning:

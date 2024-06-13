@@ -209,12 +209,12 @@ def get_yolo3_train_model(model_type, anchors, num_classes, weights_path=None, f
     if freeze_level in [1, 2]:
         # Freeze the backbone part or freeze all but final feature map & input layers.
         num = (backbone_len, len(model_body.layers)-3)[freeze_level-1]
-        for i in range(num): model_body.layers[i].trainable = False
+        for i in range(num): model_body.layers[i].requires_grad = False
         print('Freeze the first {} layers of total {} layers.'.format(num, len(model_body.layers)))
     elif freeze_level == 0:
         # Unfreeze all layers.
         for i in range(len(model_body.layers)):
-            model_body.layers[i].trainable= True
+            model_body.layers[i].requires_grad= True
         print('Unfreeze all of the layers.')
     
     ## Verify this is right ~Kyle
