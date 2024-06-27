@@ -41,7 +41,7 @@ from yolo3.loss import yolo3_loss
 from yolo3.postprocess import batched_yolo3_postprocess, batched_yolo3_prenms, Yolo3PostProcessLayer
 
 from common.model_utils import add_metrics, get_pruning_model
-
+from yolo3.lightningmodel import Model
 
 # A map of model type to construction info list for YOLOv3
 #
@@ -103,11 +103,11 @@ yolo3_tiny_model_map = {
     'tiny_yolo3_mobilenetv2_lite': [tiny_yolo3lite_mobilenetv2_body, 155, None],
     'tiny_yolo3_mobilenetv2_ultralite': [tiny_yolo3_ultralite_mobilenetv2_body, 155, None],
 
-    'tiny_yolo3_mobilenetv3large': [tiny_yolo3_mobilenetv3large_body, 195, None],
-    'tiny_yolo3_mobilenetv3large_lite': [tiny_yolo3lite_mobilenetv3large_body, 195, None],
     'tiny_yolo3_mobilenetv3small': [tiny_yolo3_mobilenetv3small_body, 166, None],
+    'tiny_yolo3_mobilenetv3large_lite': [tiny_yolo3lite_mobilenetv3large_body, 195, None],
     'tiny_yolo3_mobilenetv3small_lite': [tiny_yolo3lite_mobilenetv3small_body, 166, None],
     'tiny_yolo3_mobilenetv3small_ultralite': [tiny_yolo3_ultralite_mobilenetv3small_body, 166, None],
+    'tiny_yolo3_mobilenetv3large': [tiny_yolo3_mobilenetv3large_body, 195, None],
 
     #'tiny_yolo3_resnet50v2': [tiny_yolo3_resnet50v2_body, 190, None],
     #'tiny_yolo3_resnet50v2_lite': [tiny_yolo3lite_resnet50v2_body, 190, None],
@@ -255,6 +255,8 @@ def get_yolo3_inference_model(model_type, anchors, num_classes, weights_path=Non
     boxes, scores, classes = LambdaLayer(batched_yolo3_postprocess, name='yolo3_postprocess',
             arguments={'anchors': anchors, 'num_classes': num_classes, 'confidence': confidence, 'elim_grid_sense': elim_grid_sense})(
         [*model_body.output, image_shape])
+            
+    ## Model([inputs], [outputs])
     model = Model([model_body.input, image_shape], [boxes, scores, classes])
 
     return model

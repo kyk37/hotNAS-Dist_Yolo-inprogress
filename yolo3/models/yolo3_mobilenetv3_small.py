@@ -3,11 +3,12 @@
 """YOLO_v3 MobileNetV3Small Model Defined in Keras."""
 
 from tensorflow.keras.layers import UpSampling2D, Concatenate
-from tensorflow.keras.models import Model
+#from tensorflow.keras.models import Model
 from common.backbones.mobilenet_v3 import MobileNetV3Small
 
 from yolo3.models.layers import yolo3_predictions, yolo3lite_predictions, tiny_yolo3_predictions, tiny_yolo3lite_predictions
 from yolo3.models.ultralite_layers import yolo3_ultralite_predictions, tiny_yolo3_ultralite_predictions
+
 
 
 def yolo3_mobilenetv3small_body(inputs, num_anchors, num_classes, alpha=1.0):
