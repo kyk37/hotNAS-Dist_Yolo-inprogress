@@ -36,7 +36,7 @@ from pytorch_lightning.profilers import PyTorchProfiler
 from torch.profiler import profile, record_function, ProfilerActivity
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-
+from pytorch_symbolic import Input, SymbolicModel
 
 
 def main(args):
@@ -61,43 +61,8 @@ def main(args):
         freeze_level = args.freeze_level
     freeze_level = 0
 
-    # callbacks for training process
-    # logging = TensorBoard(log_dir=log_dir, histogram_freq=0, write_graph=False, write_grads=False, write_images=False, update_freq='batch')
-    # checkpoint = ModelCheckpoint(os.path.join(log_dir, 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5'),
-    #     monitor='val_loss',
-    #     mode='min',
-    #     verbose=1,
-    #     save_weights_only=False,
-    #     save_best_only=False,
-    #     period=args.checkpoint_period)
     
-    # early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=50, verbose=1, mode='min')
-    # terminate_on_nan = TerminateOnNaN()
-    # callbacks=[logging, checkpoint, reduce_lr, early_stopping, terminate_on_nan]
-
     
-    #https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.loggers.tensorboard.html#module-lightning.pytorch.loggers.tensorboard
-    logging = TensorBoardLogger(save_dir=log_dir, name="dist-Yolo")
-    profiler = PyTorchProfiler(
-        # may need? on_trace_ready = torch.profiler.tensorboard_trace_handler("tb_logs/profiler") 
-        dirpath = log_dir,
-        schedule= torch.profiler. schedule(skip_first=10, wait=1, warmup=1,active=20)
-    )
-    checkpoint = ModelCheckpoint(os.path.join(log_dir, 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5'),
-                                 monitor = 'val_loss',
-                                 verbose = 1,
-                                 save_weights_only=False,
-                                 mode = 'min',
-                                 every_n_train_steps=args.checkpoint_period) 
-    optim
-    reduce_lr = optim.ReduceLROnPlateau(monitor='val_loss', factor=0.5, mode='min', patience=10, verbose=1, cooldown=0, min_lr=1e-10)
-    early_stopping = EarlyStopping(monitor="val_loss", min_delta = 0, patience = 50, verbose = 1, mode="min")
-
-
-    #https://lightning.ai/docs/pytorch/1.6.0/api/pytorch_lightning.trainer.trainer.Trainer.html
-    trainer = Trainer(logger=logging, profiler=profiler, detect_anomaly=True) #Detect anomoly is "TerminateOnNan"
-    callbacks = [logging, checkpoint, reduce_lr, early_stopping]
-
     # get train&val dataset
     dataset = get_dataset(annotation_file, dataset_working_directory)
     if args.val_annotation_file:
@@ -145,6 +110,35 @@ def main(args):
         raise ValueError('Unsupported anchors number')
 
 
+    #prepare optimizer
+    optimizer = get_optimizer(args.optimizer, model.parameters(), args.learning_rate, decay_type=None)  # args.learning_rate, decay_type=None)
+
+    #Ignoring multi-gpu training type Keras uses.
+    model = get_train_model(args.model_type, anchors, num_classes, optimizer=optimizer, weights_path=args.weights_path, freeze_level=freeze_level, label_smoothing=args.label_smoothing, elim_grid_sense=args.elim_grid_sense, model_pruning=args.model_pruning, pruning_end_step=pruning_end_step)
+    optimizer.clipnorm = True
+    
+    #https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.loggers.tensorboard.html#module-lightning.pytorch.loggers.tensorboard
+    logging = TensorBoardLogger(save_dir=log_dir, name="dist-Yolo")
+    profiler = PyTorchProfiler(
+        # may need? on_trace_ready = torch.profiler.tensorboard_trace_handler("tb_logs/profiler") 
+        dirpath = log_dir,
+        schedule= torch.profiler. schedule(skip_first=10, wait=1, warmup=1,active=20)
+    )
+    checkpoint = ModelCheckpoint(os.path.join(log_dir, 'ep{epoch:03d}-loss{loss:.3f}-val_loss{val_loss:.3f}.h5'),
+                                 monitor = 'val_loss',
+                                 verbose = 1,
+                                 save_weights_only=False,
+                                 mode = 'min',
+                                 every_n_train_steps=args.checkpoint_period) 
+    
+    reduce_lr = optim.lr_scheduler.ReduceLROnPlateau(optimizer,mode='min', factor=0.5, patience=10, cooldown=0, min_lr=1e-10)
+    early_stopping = EarlyStopping(monitor="val_loss", min_delta = 0, patience = 50, verbose = 1, mode="min")
+
+    #https://lightning.ai/docs/pytorch/1.6.0/api/pytorch_lightning.trainer.trainer.Trainer.html
+
+    callbacks = [logging, checkpoint, reduce_lr, early_stopping]
+    trainer = Trainer(logger=logging, profiler=profiler, detect_anomaly=True, callbacks=callbacks) #Detect anomoly is "TerminateOnNan"
+
     # prepare online evaluation callback
     if args.eval_online:
         eval_callback = EvalCallBack(args.model_type, dataset[num_train:], anchors, class_names, args.model_image_size, args.model_pruning, log_dir, eval_epoch_interval=args.eval_epoch_interval, save_eval_checkpoint=args.save_eval_checkpoint, elim_grid_sense=args.elim_grid_sense)
@@ -162,14 +156,9 @@ def main(args):
         #FIXME callbacks = callbacks + pruning_callbacks
         raise "Not resolved, not supported now"
 
-    # prepare optimizer
-    optimizer = get_optimizer(args.optimizer, args.learning_rate, decay_type=None)  # args.learning_rate, decay_type=None)
-    optimizer.clipnorm = True
-
-    #Ignoring multi-gpu training type Keras uses.
-    model = get_train_model(args.model_type, anchors, num_classes, weights_path=args.weights_path, freeze_level=freeze_level, optimizer=optimizer, label_smoothing=args.label_smoothing, elim_grid_sense=args.elim_grid_sense, model_pruning=args.model_pruning, pruning_end_step=pruning_end_step)
+    
+    
     model.summary()
-
 
     #Set device. Parallel enabled, can also select # devices for training in Trainer(devices= ,)
     DEVICE = optimize_pytorch_gpu(model)

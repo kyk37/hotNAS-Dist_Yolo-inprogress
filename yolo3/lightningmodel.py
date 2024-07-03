@@ -22,7 +22,7 @@ class Model(L.LightningModule):
         self.save_hyperparameters()
         self.optimizer = optimizer
         self.scheduler = scheduler
-        
+        self.loss = {'yolo_loss': lambda y_true, y_pred: y_pred}
 
     
         
@@ -32,9 +32,10 @@ class Model(L.LightningModule):
     
     def training_step(self, batch, batch_idx): #training loop independent of forward
         
-        loss, total_location_loss, total_confidence_loss, total_class_loss, total_dist_loss = yolo3_loss(args, anchors, num_classes, ignore_thresh=.5, label_smoothing=0, elim_grid_sense=False, use_focal_loss=False, use_focal_obj_loss=False, use_softmax_loss=False, use_giou_loss=False, use_diou_loss=True
-        return
-    
+        
+        loss_dict = {'location_loss':location_loss, 'confidence_loss':confidence_loss, 'class_loss':class_loss, 'dist_loss':dist_loss}
+        for (name, metric) in loss_dict.items():
+            self.log(name, metric)
     
     def validation_step(self, batch, batch_idx):
         pass

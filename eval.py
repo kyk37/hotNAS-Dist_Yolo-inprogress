@@ -21,17 +21,16 @@ import MNN
 import onnxruntime
 
 from yolo3.postprocess_np import yolo3_postprocess_np
-from yolo2.postprocess_np import yolo2_postprocess_np
+#from yolo2.postprocess_np import yolo2_postprocess_np
 from common.data_utils import preprocess_image
-from common.utils import get_dataset, get_classes, get_anchors, get_colors, get_colors_fixed_map, _draw_boxes3, \
-    optimize_tf_gpu, \
-    get_custom_objects
+from common.utils import get_dataset, get_classes, get_anchors, get_colors, get_colors_fixed_map, _draw_boxes3, get_custom_objects #optimize_tf_gpu, 
+
 import math
 from pathlib import Path
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-optimize_tf_gpu(tf, K)
+#optimize_tf_gpu(tf, K)
 
 
 def annotation_parse(annotation_lines, class_names):
@@ -251,11 +250,13 @@ def yolo_predict_mnn(interpreter, session, image, anchors, num_classes, conf_thr
     prediction.sort(key=lambda x: len(x[0]))
     if len(anchors) == 5:
         # YOLOv2 use 5 anchors and have only 1 prediction
-        assert len(prediction) == 1, 'invalid YOLOv2 prediction number.'
-        pred_boxes, pred_classes, pred_scores = yolo2_postprocess_np(prediction[0], image_shape, anchors, num_classes,
-                                                                     model_image_size, max_boxes=100,
-                                                                     confidence=conf_threshold,
-                                                                     elim_grid_sense=elim_grid_sense)
+        # assert len(prediction) == 1, 'invalid YOLOv2 prediction number.'
+        # pred_boxes, pred_classes, pred_scores = yolo2_postprocess_np(prediction[0], image_shape, anchors, num_classes,
+        #                                                              model_image_size, max_boxes=100,
+        #                                                              confidence=conf_threshold,
+        #                                                              elim_grid_sense=elim_grid_sense)
+        print ("Error: not using Yolov2")
+        exit(1)
     else:
         pred_boxes, pred_classes, pred_scores = yolo3_postprocess_np(prediction, image_shape, anchors, num_classes,
                                                                      model_image_size, max_boxes=100,
@@ -301,12 +302,14 @@ def yolo_predict_pb(model, image, anchors, num_classes, model_image_size, conf_t
 
     prediction.sort(key=lambda x: len(x[0]))
     if len(anchors) == 5:
-        # YOLOv2 use 5 anchors and have only 1 prediction
-        assert len(prediction) == 1, 'invalid YOLOv2 prediction number.'
-        pred_boxes, pred_classes, pred_scores = yolo2_postprocess_np(prediction[0], image_shape, anchors, num_classes,
-                                                                     model_image_size, max_boxes=100,
-                                                                     confidence=conf_threshold,
-                                                                     elim_grid_sense=elim_grid_sense)
+        # # YOLOv2 use 5 anchors and have only 1 prediction
+        # assert len(prediction) == 1, 'invalid YOLOv2 prediction number.'
+        # pred_boxes, pred_classes, pred_scores = yolo2_postprocess_np(prediction[0], image_shape, anchors, num_classes,
+        #                                                              model_image_size, max_boxes=100,
+        #                                                              confidence=conf_threshold,
+        #                                                              elim_grid_sense=elim_grid_sense)
+        print ("Error: not using Yolov2")
+        exit(1)
     else:
         pred_boxes, pred_classes, pred_scores = yolo3_postprocess_np(prediction, image_shape, anchors, num_classes,
                                                                      model_image_size, max_boxes=100,
@@ -339,10 +342,12 @@ def yolo_predict_onnx(model, image, anchors, num_classes, conf_threshold, elim_g
     if len(anchors) == 5:
         # YOLOv2 use 5 anchors and have only 1 prediction
         assert len(prediction) == 1, 'invalid YOLOv2 prediction number.'
-        pred_boxes, pred_classes, pred_scores = yolo2_postprocess_np(prediction[0], image_shape, anchors, num_classes,
-                                                                     model_image_size, max_boxes=100,
-                                                                     confidence=conf_threshold,
-                                                                     elim_grid_sense=elim_grid_sense)
+        # pred_boxes, pred_classes, pred_scores = yolo2_postprocess_np(prediction[0], image_shape, anchors, num_classes,
+        #                                                              model_image_size, max_boxes=100,
+        #                                                              confidence=conf_threshold,
+        #                                                              elim_grid_sense=elim_grid_sense)
+        print ("Error: not using Yolov2")
+        exit(1)
     else:
         pred_boxes, pred_classes, pred_scores = yolo3_postprocess_np(prediction, image_shape, anchors, num_classes,
                                                                      model_image_size, max_boxes=100,
@@ -360,10 +365,12 @@ def yolo_predict_keras(model, image, anchors, num_classes, model_image_size, con
     prediction = model.predict([image_data])
     if len(anchors) == 5:
         # YOLOv2 use 5 anchors
-        pred_boxes, pred_classes, pred_scores = yolo2_postprocess_np(prediction, image_shape, anchors, num_classes,
-                                                                     model_image_size, max_boxes=100,
-                                                                     confidence=conf_threshold,
-                                                                     elim_grid_sense=elim_grid_sense)
+        # pred_boxes, pred_classes, pred_scores = yolo2_postprocess_np(prediction, image_shape, anchors, num_classes,
+        #                                                              model_image_size, max_boxes=100,
+        #                                                              confidence=conf_threshold,
+        #                                                              elim_grid_sense=elim_grid_sense)
+        print ("Error: not using Yolov2")
+        exit(1)
         pred_distances = None
     else:
         pred_boxes, pred_classes, pred_scores, pred_distances = yolo3_postprocess_np(prediction, image_shape, anchors,

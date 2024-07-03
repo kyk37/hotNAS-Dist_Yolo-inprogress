@@ -711,7 +711,7 @@ def batched_yolo3_prenms(args,
 
 ## nn.module equiv?
 
-class Yolo3PostProcessLayer(nn.module): #Layer):
+class Yolo3PostProcessLayer(nn.Module): #Layer):
     def __init__(self, anchors, num_classes, input_dim, **kwargs):
         self.anchors = anchors
         self.num_classes = num_classes

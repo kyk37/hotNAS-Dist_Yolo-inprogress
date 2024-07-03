@@ -13,7 +13,7 @@ from functools import partial
 
 import torch
 from torch import nn, optim, Tensor
-from lightningmodel import LambdaLayer, Input
+from yolo3.lightningmodel import LambdaLayer, Input
 
 from yolo3.models.yolo3_darknet import yolo3_body, custom_tiny_yolo3_body, yolo3lite_body, tiny_yolo3lite_body, custom_yolo3_spp_body
 from yolo3.models.yolo3_mobilenet import yolo3_mobilenet_body, tiny_yolo3_mobilenet_body, yolo3lite_mobilenet_body, yolo3lite_spp_mobilenet_body, tiny_yolo3lite_mobilenet_body
@@ -41,7 +41,8 @@ from yolo3.loss import yolo3_loss
 from yolo3.postprocess import batched_yolo3_postprocess, batched_yolo3_prenms, Yolo3PostProcessLayer
 
 from common.model_utils import add_metrics, get_pruning_model
-from yolo3.lightningmodel import Model
+#from yolo3.lightningmodel import Model
+from pytorch_symbolic import Input, SymbolicModel
 
 # A map of model type to construction info list for YOLOv3
 #
@@ -135,8 +136,8 @@ yolo3_tiny_model_map = {
 
 
 def get_yolo3_model(model_type, num_feature_layers, num_anchors, num_classes, input_tensor=None, input_shape=None, model_pruning=False, pruning_end_step=10000):
+    
     #prepare input tensor
-    #TODO: Note there is no "Input" in pytorch. Identify if "Input"
     if input_shape:
         input_tensor = Input(shape=input_shape, name='image_input')
 
@@ -181,7 +182,7 @@ def get_yolo3_model(model_type, num_feature_layers, num_anchors, num_classes, in
 
 
 
-def get_yolo3_train_model(model_type, anchors, num_classes, weights_path=None, freeze_level=1, optimizer=optim.Adam(lr=1e-3, decay=0), label_smoothing=0, elim_grid_sense=False, model_pruning=False, pruning_end_step=10000):
+def get_yolo3_train_model(model_type, anchors, num_classes,optimizer, weights_path=None, freeze_level=1, label_smoothing=0, elim_grid_sense=False, model_pruning=False, pruning_end_step=10000):
     '''create the training model, for YOLOv3'''
     #K.clear_session() # get a new session
     num_anchors = len(anchors)
@@ -196,7 +197,7 @@ def get_yolo3_train_model(model_type, anchors, num_classes, weights_path=None, f
     #  (image_height/16, image_width/16, 3, num_classes+5),
     #  (image_height/8, image_width/8, 3, num_classes+5)
     # ]
-    y_true = [Input(shape=(None, None, 3, num_classes+5+1), name='y_true_{}'.format(l)) for l in range(num_feature_layers)]
+
 
     model_body, backbone_len = get_yolo3_model(model_type, num_feature_layers, num_anchors, num_classes, model_pruning=model_pruning, pruning_end_step=pruning_end_step)
     print('Create {} {} model with {} anchors and {} classes.'.format('Tiny' if num_feature_layers==2 else '', model_type, num_anchors, num_classes))
@@ -216,20 +217,19 @@ def get_yolo3_train_model(model_type, anchors, num_classes, weights_path=None, f
         for i in range(len(model_body.layers)):
             model_body.layers[i].requires_grad= True
         print('Unfreeze all of the layers.')
-    
-    ## Verify this is right ~Kyle
+        
+    y_true = [Input(shape=(None, None, 3, num_classes+5+1), name='y_true_{}'.format(l)) for l in range(num_feature_layers)]    
+    # Verify this is right ~Kyle ALSO THIS MAY GO INTO TRAINING_STEP
     model_loss, location_loss, confidence_loss, class_loss, dist_loss = LambdaLayer(yolo3_loss, name='yolo_loss',
-            arguments={'anchors': anchors, 'num_classes': num_classes, 'ignore_thresh': 0.5, 'label_smoothing': label_smoothing, 'elim_grid_sense': elim_grid_sense, 'use_diou_loss' : False})(
-        [*model_body.output, *y_true])
+             arguments={'anchors': anchors, 'num_classes': num_classes, 'ignore_thresh': 0.5, 'label_smoothing': label_smoothing, 'elim_grid_sense': elim_grid_sense, 'use_diou_loss' : False})(
+         [*model_body.output, *y_true])
 
-    model = Model([model_body.input, *y_true], model_loss)
+    model = SymbolicModel([model_body.input, *y_true], model_loss)
 
     loss_dict = {'location_loss':location_loss, 'confidence_loss':confidence_loss, 'class_loss':class_loss, 'dist_loss':dist_loss}
-    add_metrics(model, loss_dict)
+    #add_metrics(model, loss_dict) #add a metric for tracking mean. This can be done externally
 
-    model.compile(optimizer=optimizer, loss={
-        # use custom yolo_loss Lambda layer.
-        'yolo_loss': lambda y_true, y_pred: y_pred})
+    #model.compile(optimizer=optimizer, loss={'yolo_loss': lambda y_true, y_pred: y_pred}) #do this inside pytorch lightning object
 
     return model
 
@@ -257,7 +257,7 @@ def get_yolo3_inference_model(model_type, anchors, num_classes, weights_path=Non
         [*model_body.output, image_shape])
             
     ## Model([inputs], [outputs])
-    model = Model([model_body.input, image_shape], [boxes, scores, classes])
+    model = SymbolicModel([model_body.input, image_shape], [boxes, scores, classes])
 
     return model
 

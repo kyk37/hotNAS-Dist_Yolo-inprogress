@@ -12,7 +12,7 @@ import torch.nn.utils.prune as prune
 import torch.nn.functional as F
 import math
 import pytorch_lightning
-from pytorch_lightning import ModelPruning
+from pytorch_lightning.callbacks import ModelPruning
 
 
 def add_metrics(model, metric_dict):
@@ -25,9 +25,9 @@ def add_metrics(model, metric_dict):
         # want to customize metrics on raw keras model, just use
         # "metrics_names" and "metrics_tensors" as follow:
         #
-        #model.metrics_names.append(name)
-        #model.metrics_tensors.append(loss)
-        model.add_metric(metric, name=name, aggregation='mean')
+        # model.metrics_names.append(name)
+        # model.metrics_tensors.append(loss)
+        # model.add_metric(metric, name=name, aggregation='mean')
 
 
 # create function for decayed learning rate based on https://keras.io/api/optimizers/learning_rate_schedules/polynomial_decay/
@@ -51,11 +51,10 @@ def get_pruning_model(model, begin_step, end_step):
     optimizer = optim.SGD(model.parameters(), lr=initial_rate)
 
     ## send model to polynomialLR
-    scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: polynomial_decay(epoch, max_epochs, initial_lr, final_lr, power))
+    scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda epoch: polynomial_decay(epoch, max_epochs, initial_rate, final_rate, power))
 
     ## send model to be pruned prune 70% of model
     pruning_model = prune.RandomUnstructured(scheduler, name="weight", amount=0.7)
-
 
     return pruning_model
 
@@ -163,11 +162,11 @@ def get_lr_scheduler(learning_rate, decay_type, decay_steps):
     if decay_type == None:
         lr_scheduler = learning_rate
     elif decay_type == 'cosine':
-        lr_scheduler = optim.CosineAnnealingLR(initial_learning_rate=learning_rate, decay_steps=decay_steps)
+        lr_scheduler = optim.lr_scheduler.CosineAnnealingLR(initial_learning_rate=learning_rate, decay_steps=decay_steps)
     elif decay_type == 'exponential':
-        lr_scheduler = optim.ExponentialLR(initial_learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=0.9)
+        lr_scheduler = optim.lr_scheduler.ExponentialLR(initial_learning_rate=learning_rate, decay_steps=decay_steps, decay_rate=0.9)
     elif decay_type == 'polynomial':
-        lr_scheduler = optim.PolynomialLR(initial_learning_rate=learning_rate, decay_steps=decay_steps, end_learning_rate=learning_rate/100)
+        lr_scheduler = optim.lr_scheduler.PolynomialLR(initial_learning_rate=learning_rate, decay_steps=decay_steps, end_learning_rate=learning_rate/100)
     elif decay_type == 'piecewise_constant':
         raise ValueError('Unsupported lr decay type')
         # not supported in pytorch, requires custom scheduler
@@ -182,7 +181,7 @@ def get_lr_scheduler(learning_rate, decay_type, decay_steps):
     return lr_scheduler
 
 
-def get_optimizer(optim_type, learning_rate, decay_type='cosine', decay_steps=100000):
+def get_optimizer(optim_type, parameters, learning_rate, decay_type='cosine', decay_steps=100000):
     optim_type = optim_type.lower()
   
     ## NOTE: section in pytorch docs does not exist for this. Posted a comment on github for them to fix https://github.com/pytorch/pytorch/issues/127884
@@ -190,13 +189,12 @@ def get_optimizer(optim_type, learning_rate, decay_type='cosine', decay_steps=10
     lr_scheduler = optim.lr_scheduler(learning_rate, decay_type, decay_steps) 
 
     if optim_type == 'adam':
-        optimizer = optim.Adam(learning_rate=lr_scheduler, amsgrad=False) #same
+        optimizer = optim.Adam(parameters, learning_rate=lr_scheduler, amsgrad=False) #same
     elif optim_type == 'rmsprop':
-        optimizer = optim.RMSprop(learning_rate=lr_scheduler, momentum=0.0, alpha=0.9, centered=False) #rho (keras) = alhpa (pytorch)
+        optimizer = optim.RMSprop(parameters,learning_rate=lr_scheduler, momentum=0.0, alpha=0.9, centered=False) #rho (keras) = alhpa (pytorch)
     elif optim_type == 'sgd':
-        optimizer = optim.SGD(learning_rate=lr_scheduler, momentum=0.0, nesterov=False) # same
+        optimizer = optim.SGD(parameters,learning_rate=lr_scheduler, momentum=0.0, nesterov=False) # same
     else:
         raise ValueError('Unsupported optimizer type')
 
     return optimizer
-
