@@ -7,7 +7,7 @@
 for model in 'resnet18' 'resnet34' 'resnet50';
 do
 #	touch res/$model
-	python explore_conv_only.py -m $model > res/$model.res &
+	python explore_conv_only.py -m $model
 #	python explore_conv_dconv.py -m $model > res/$model.res &
 done
 

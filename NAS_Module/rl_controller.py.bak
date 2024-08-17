@@ -1,15 +1,12 @@
 # %%
-# import necessary libraries
+
 import logging
 import csv
 import numpy as np
-import tensorflow.compat.v1 as tf
-tf.disable_v2_behavior()
-import tensorflow as tf2
-import tensorflow_addons as tfa
+import tensorflow as tf
 import sys
-from rl_input import controller_params, HW_constraints # Import controller parameters and hardware constriants
-import termplotlib as tpl # For plotting terminal-based graphs
+from rl_input import controller_params, HW_constraints
+import termplotlib as tpl
 import copy
 import random
 from datetime import datetime
@@ -17,17 +14,16 @@ import time
 import torch
 import os
 
-import train # Import the train module for training and evaluation of models
-import utils # Import utility functions for general tasks
- 
-from pattern_generator import pattern_sets_generate_3 # Functions to generate pattern sets
+import train
+import utils
+
+from pattern_generator import pattern_sets_generate_3
 from model_search_space import ss_mnasnet1_0, ss_mnasnet0_5, ss_resnet18, ss_mobilenet_v2, ss_proxyless_mobile, ss_resnet18_cifar
 from model_search_space import ss_big_transfer,ss_mobilenet_cifar,ss_densenet121_cifar
-# Import search spaces
 
-logger = logging.getLogger(__name__) # Set up logger for logger events in this script
+logger = logging.getLogger(__name__)
 
-# Function to calculate exponential moving average of a list of values
+
 def ema(values):
     """
     Helper function for keeping track of an exponential moving average of a list of values.
@@ -161,12 +157,9 @@ class Controller(object):
         logger.info('Building Controller')
         with tf.name_scope('controller'):
             with tf.variable_scope('RNN'):
-                # nas = tfa.contrib.rnn.NASCell(self.hidden_units)
-                # tmp_state = nas.zero_state(batch_size=self.batch_size, dtype=tf.float32)
-                # init_state = tf.nn.rnn_cell.LSTMStateTuple(tmp_state[0], tmp_state[1])
-
-                nas = tfa.rnn.NASCell(self.hidden_units)
-                init_state = nas.get_initial_state(batch_size=self.batch_size, dtype=tf.float32)
+                nas = tf.contrib.rnn.NASCell(self.hidden_units)
+                tmp_state = nas.zero_state(batch_size=self.batch_size, dtype=tf.float32)
+                init_state = tf.nn.rnn_cell.LSTMStateTuple(tmp_state[0], tmp_state[1])
 
                 output, final_state = tf.nn.dynamic_rnn(nas, self.embedded_input, initial_state=init_state,
                                                         dtype=tf.float32)
